@@ -1,8 +1,8 @@
 import math
 import os
-
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, url_for
+from db import init_db, insert_lead, get_lead, get_lead_heavy
 
 load_dotenv()
 
@@ -79,7 +79,7 @@ def about():
 
 @app.route("/estimate", methods=["POST"])
 def estimate():
-    email = request.form.get("email", "").strip()
+    email = request.form.get("email", "").strip().lower()
     service = request.form.get("service", "").strip()
     condition = request.form.get("condition", "").strip()
     acreage = parse_acreage(request.form.get("acreage", "").strip())
@@ -88,15 +88,21 @@ def estimate():
     if error:
         flash(error)
         return redirect(url_for("home"))
-
     result = calculate_estimate(service, acreage, condition)
     if result is None:
-        flash("Thanks! Your yard needs a quick look first. We'll reach out to schedule a free visit.")
+        flag = insert_lead(email,service,condition,acreage, None, None)
+        if flag:
+            flash("Thanks! Your yard needs a quick look first. We'll reach out to schedule a free visit.")
     else:
         low, high = result
-        flash(f"Your estimate is ${low} to ${high}.")
+        flag = insert_lead(email,service,condition,acreage, low, high)
+        if flag:
+            flash(f"Your estimate is ${low} to ${high}.")
+    print(get_lead(email))
+    print(f"Heavy: {get_lead_heavy()}")
     return redirect(url_for("home"))
 
 
 if __name__ == "__main__":
+    init_db()
     app.run(debug=True)
