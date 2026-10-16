@@ -30,11 +30,11 @@ def insert_lead(email,service,condition,acreage,low,high):
     try:
         cursor.execute("INSERT INTO leads (email,service,condition,acreage,low,high) VALUES (?, ?, ?, ?, ?, ?)", (email,service,condition,acreage,low,high))
         conn.commit()
-        return True
+        return cursor.lastrowid
     except sqlite3.IntegrityError:
-        return False
+        return None
     except Exception:
-        return False
+        return None
     finally:
         conn.close()
 

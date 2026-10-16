@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, url_for
 from db import init_db, insert_lead, get_lead, get_lead_heavy
+from mail import send_email
 
 load_dotenv()
 
@@ -98,6 +99,7 @@ def estimate():
         flag = insert_lead(email,service,condition,acreage, low, high)
         if flag:
             flash(f"Your estimate is ${low} to ${high}.")
+            send_email(email, f"Your estimate is ${low} to ${high}.")
     print(get_lead(email))
     print(f"Heavy: {get_lead_heavy()}")
     return redirect(url_for("home"))
