@@ -1,12 +1,13 @@
 import math
 import os
+import logging
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, url_for
 from db import init_db, insert_lead, get_lead, get_lead_heavy
-from mail import send_email
+from mail import send_email, build_estimate_body
 
 load_dotenv()
-
+logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
@@ -56,7 +57,7 @@ def validate(email, service, condition, acreage):
 def calculate_estimate(service, acreage, condition):
     multipliers = CONDITIONS[condition]
     if multipliers is None:
-        return None
+        return None, None
     rate = RATES[service]
     base = max(acreage * rate["per_acre"], rate["minimum"])
     low_mult, high_mult = multipliers
@@ -89,19 +90,16 @@ def estimate():
     if error:
         flash(error)
         return redirect(url_for("home"))
-    result = calculate_estimate(service, acreage, condition)
-    if result is None:
-        flag = insert_lead(email,service,condition,acreage, None, None)
-        if flag:
-            flash("Thanks! Your yard needs a quick look first. We'll reach out to schedule a free visit.")
+    low,high = calculate_estimate(service, acreage, condition)
+    insert_flag = insert_lead(email,service,condition,acreage, low, high)
+    sent_flag = None
+    if insert_flag:
+        sent_flag = send_email(email,build_estimate_body(low,high))
+
+    if sent_flag:
+        flash("Email Sent!")
     else:
-        low, high = result
-        flag = insert_lead(email,service,condition,acreage, low, high)
-        if flag:
-            flash(f"Your estimate is ${low} to ${high}.")
-            send_email(email, f"Your estimate is ${low} to ${high}.")
-    print(get_lead(email))
-    print(f"Heavy: {get_lead_heavy()}")
+        flash("Something went wrong please try again")
     return redirect(url_for("home"))
 
 
